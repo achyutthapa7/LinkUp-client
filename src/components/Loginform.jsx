@@ -1,10 +1,12 @@
 import React, { useState } from "react";
 import LoadingAnimation from "./LoadingAnimation";
 import toast from "react-hot-toast";
-import { useAuth } from "../context/User";
+import { useAuth } from "../context/Authentication";
 import { useNavigate } from "react-router-dom";
+import { useUser } from "../context/UserProfile";
 
 const Loginform = ({ setRegistrationModal = () => {} }) => {
+  const[user,setUser] =useUser()
   const [isLoading, setIsLoading] = useState(false);
   const [auth, setAuth] = useAuth();
   const [userName, setUsername] = useState("");
@@ -22,9 +24,11 @@ const Loginform = ({ setRegistrationModal = () => {} }) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ userName, emailAddress, password }),
+          credentials: "include",
         });
         const data = await res.json();
         if (res.status === 200) {
+          setUser(data.user);
           navigate("/feeds");
           localStorage.setItem("token", data.token);
           setAuth({ ...auth, token: data.token });

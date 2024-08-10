@@ -4,12 +4,15 @@ import App from "./App.jsx";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { User } from "./context/User.jsx";
+import { Authentication } from "./context/Authentication.jsx";
+import { UserProfile } from "./context/UserProfile.jsx";
 createRoot(document.getElementById("root")).render(
-  <User>
-    <BrowserRouter>
-      <Toaster />
-      <App />
-    </BrowserRouter>
-  </User>
+  <Authentication>
+    <UserProfile>
+      <BrowserRouter>
+        <Toaster />
+        <App />
+      </BrowserRouter>
+    </UserProfile>
+  </Authentication>
 );

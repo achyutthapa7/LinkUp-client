@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import LoadingAnimation from "./LoadingAnimation";
-import { useAuth } from "../context/User";
+import { useAuth } from "../context/Authentication";
+import { useUser } from "../context/UserProfile";
 
 const Registrationmodal = ({
   registrationModal,
@@ -13,6 +14,7 @@ const Registrationmodal = ({
   const [createUsername, setCreateUsername] = useState(false);
   const [createPassword, setCreatePassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState(false);
+  const [addProfilePicture, setAddProfilePicture] = useState(false);
   const [data, setData] = useState(
     JSON.parse(localStorage.getItem("DATA")) || null
   );
@@ -71,6 +73,18 @@ const Registrationmodal = ({
             setConfirmPassword={setConfirmPassword}
             setRegistration={setRegistration}
             setRegistrationModal={setRegistrationModal}
+            data={data}
+            setData={setData}
+            setAddProfilePicture={setAddProfilePicture}
+          />
+        )}
+
+        {addProfilePicture && (
+          <AddProfilePicture
+            setConfirmPassword={setConfirmPassword}
+            setRegistration={setRegistration}
+            setRegistrationModal={setRegistrationModal}
+            setAddProfilePicture={setAddProfilePicture}
             data={data}
             setData={setData}
           />
@@ -623,10 +637,6 @@ const CreatePassword = ({
           disabled={isLoading || (data.user.password && true)}
           type="submit"
           className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 focus:outline-none"
-          onClick={() => {
-            // setConfirmPassword(true);
-            // setCreatePassword(false);
-          }}
         >
           {isLoading ? <LoadingAnimation /> : "Create"}
         </button>
@@ -642,8 +652,8 @@ const ConfirmPassword = ({
   setCreatePassword,
   data,
   setData,
+  setAddProfilePicture,
 }) => {
-  const [auth, setAuth] = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [confirmPassword, setconfirmPassword] = useState("");
   const navigate = useNavigate();
@@ -664,19 +674,19 @@ const ConfirmPassword = ({
             body: JSON.stringify({
               confirmPassword,
             }),
+            credentials: "include",
           }
         );
         const Data = await res.json();
         if (res.status === 200) {
           setData(Data);
-          localStorage.removeItem("DATA");
-          localStorage.setItem("token", Data.token);
-          setAuth({ ...auth, token: Data.token });
+          localStorage.setItem("DATA", JSON.stringify(Data));
+          // localStorage.setItem("token", Data.token);
+          // setAuth({ ...auth, token: Data.token });
           toast.success(Data.message);
-          setRegistrationModal(false);
+          setAddProfilePicture(true);
           setConfirmPassword(false);
           setIsLoading(false);
-          navigate("/feeds", { state: data });
         } else if (res.status === 404) {
           toast.error(Data.message);
           setIsLoading(false);
@@ -729,6 +739,7 @@ const ConfirmPassword = ({
       >
         Go back
       </span>
+
       <form onSubmit={handleSubmit}>
         <input
           type="password"
@@ -738,15 +749,161 @@ const ConfirmPassword = ({
           name={confirmPassword}
         />
         <button
+          disabled={isLoading}
           type="submit"
           className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 focus:outline-none"
-          onClick={() => {
-            // setConfirmPassword(false);
-            // setRegistrationModal(false);
-            // setRegistration(true);
-          }}
         >
           {isLoading ? <LoadingAnimation /> : "Confirm"}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+const AddProfilePicture = ({
+  setConfirmPassword,
+  setRegistration,
+  setRegistrationModal,
+  setAddProfilePicture,
+  data,
+  setData,
+}) => {
+  const [user, setUser] = useUser();
+  const [auth, setAuth] = useAuth();
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [imgSrc, setImgSrc] = useState(null);
+  const imgRef = useRef();
+  const handleChange = (e) => {
+    setImgSrc(URL.createObjectURL(e.target.files[0]));
+  };
+  const handleSkip = () => {
+    setRegistrationModal(false);
+    setAddProfilePicture(false);
+    setRegistration(true);
+    localStorage.removeItem("DATA");
+    navigate("/feeds");
+    localStorage.setItem("token", data.token);
+    setAuth({ ...auth, token: data.token });
+  };
+  const handleSubmit = async (e) => {
+    setIsLoading(true);
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append("profileImage", imgRef.current.files[0]);
+
+    if (formData) {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_URL}/addProfilePicture/${
+            data.user.emailAddress
+          }`,
+          {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          }
+        );
+        const Data = await res.json();
+        if (res.status === 200) {
+          setUser(Data.user);
+          toast.success(Data.message);
+          setRegistrationModal(false);
+          setAddProfilePicture(false);
+          setRegistration(true);
+          localStorage.removeItem("DATA");
+          navigate("/feeds");
+          localStorage.setItem("token", data.token);
+          setAuth({ ...auth, token: data.token });
+        } else if (res.status === 404) {
+          toast.error(Data.message);
+          setIsLoading(false);
+        } else if (res.status === 500) {
+          toast.error(Data.message);
+          setIsLoading(false);
+        } else {
+          toast.error("An error occured");
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.log(error.message);
+        setIsLoading(false);
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      toast.error("Please select a profile picture");
+      setIsLoading(false);
+      return;
+    }
+  };
+  return (
+    <div className="px-10 py-8 flex flex-col h-full relative bg-white rounded-lg shadow-md">
+      <span
+        className="absolute top-2 left-3 text-sm font-medium cursor-pointer text-gray-600 hover:text-gray-700"
+        onClick={handleSkip}
+      >
+        Skip
+      </span>
+      <p className="text-3xl font-semibold text-center mb-3 text-blue-700">
+        Add Profile Picture
+      </p>
+      <p className="text-center text-gray-600 mb-8">
+        To personalize your profile, please upload a profile picture. You can
+        skip this step and add a picture later if you prefer.
+      </p>
+
+      <span
+        className="absolute top-2 right-3 text-2xl font-semibold cursor-pointer text-gray-600 hover:text-gray-700"
+        onClick={() => {
+          setRegistrationModal(false);
+          setRegistration(false);
+          setAddProfilePicture(true);
+        }}
+      >
+        X
+      </span>
+      <div className="flex flex-col items-center justify-center cursor-pointer mb-6">
+        <label
+          htmlFor="profile-picture"
+          className="cursor-pointer hover:text-blue-600 mb-4 text-lg text-blue-500"
+        >
+          {imgSrc ? "Change Profile Picture" : "Choose Your Profile Picture"}
+        </label>
+        <div className="w-48 h-48 rounded-full border-[10px] border-gray-300 flex items-center justify-center bg-gray-100">
+          {imgSrc ? (
+            <a
+              href={imgSrc}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full h-full"
+            >
+              <img
+                src={imgSrc}
+                alt="Profile Preview"
+                className="w-full h-full rounded-full object-cover"
+              />
+            </a>
+          ) : (
+            <p className="text-gray-400">No image selected</p>
+          )}
+        </div>
+      </div>
+
+      <form className="flex flex-col items-center" onSubmit={handleSubmit}>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          id="profile-picture"
+          onChange={handleChange}
+          ref={imgRef}
+        />
+        <button
+          type="submit"
+          className="w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 focus:outline-none mb-4"
+        >
+          {isLoading ? "Uploading..." : "Confirm"}
         </button>
       </form>
     </div>

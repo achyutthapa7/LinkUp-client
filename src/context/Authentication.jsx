@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState } from "react";
 const Auth = createContext();
-export const User = ({ children }) => {
+export const Authentication = ({ children }) => {
   const [auth, setAuth] = useState({
     token: localStorage.getItem("token") || null,
   });
